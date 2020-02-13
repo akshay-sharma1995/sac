@@ -136,7 +136,8 @@ ENV_PARAMS = {
         'scale_reward': 1,
     },
 }
-DEFAULT_ENV = 'swimmer'
+# DEFAULT_ENV = 'swimmer'
+DEFAULT_ENV = 'inverted-pendulum'
 AVAILABLE_ENVS = list(ENV_PARAMS.keys())
 
 def parse_args():
@@ -260,11 +261,13 @@ def launch_experiments(variant_generator):
     variants = variant_generator.variants()
 
     for i, variant in enumerate(variants):
+        print ('iteration number', i)
         tag = 'finetune__'
         print(variant['snapshot_filename'])
-        tag += variant['snapshot_filename'].split('/')[-2]
+        tag += variant['snapshot_filename']#.split('/')[-2]
         tag += '____'
         tag += '__'.join(['%s_%s' % (key, variant[key]) for key in TAG_KEYS])
+        print (tag, 'tag for')
         log_dir = os.path.join(args.log_dir, tag)
         variant['video_dir'] = os.path.join(log_dir, 'videos')
         print('Launching {} experiments.'.format(len(variants)))
@@ -287,4 +290,5 @@ def launch_experiments(variant_generator):
 if __name__ == '__main__':
     args = parse_args()
     variant_generator = get_variants(args)
+    print (variant_generator)
     launch_experiments(variant_generator)

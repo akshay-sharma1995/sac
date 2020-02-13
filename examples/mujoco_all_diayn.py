@@ -49,7 +49,7 @@ ENV_PARAMS = {
         'prefix': 'swimmer',
         'env_name': 'Swimmer-v1',
         'max_path_length': 1000,
-        'n_epochs': 10000,
+        'n_epochs': 1000,
     },
     'hopper': { # 3 DoF
         'prefix': 'hopper',
@@ -94,7 +94,7 @@ ENV_PARAMS = {
         'prefix': 'inverted-pendulum',
         'env_name': 'InvertedPendulum-v1',
         'max_path_length': 1000,
-        'n_epochs': 1000,
+        'n_epochs': 100,
     },
     'inverted-double-pendulum': {
         'prefix': 'inverted-double-pendulum',
@@ -131,7 +131,7 @@ ENV_PARAMS = {
         'scale_entropy': 0.1,
     },
 }
-DEFAULT_ENV = 'swimmer'
+DEFAULT_ENV = 'inverted-pendulum'#'swimmer'
 AVAILABLE_ENVS = list(ENV_PARAMS.keys())
 
 def parse_args():
@@ -143,6 +143,9 @@ def parse_args():
     parser.add_argument('--exp_name', type=str, default=timestamp())
     parser.add_argument('--mode', type=str, default='local')
     parser.add_argument('--log_dir', type=str, default=None)
+    parser.add_argument('--temp',type=float,default=0.0023)
+    parser.add_argument('--task-rew-wt',type=float,default=1.0) 
+    parser.add_argument('--div-rew-wt',type=float,default=1.0) 
     args = parser.parse_args()
 
     return args
@@ -239,12 +242,16 @@ def run_experiment(variant):
         include_actions=variant['include_actions'],
         learn_p_z=variant['learn_p_z'],
         add_p_z=variant['add_p_z'],
+
+        task_rew_wt=task_rew_wt,
+        div_rew_wt=div_rew_wt,
+        temp = temp
     )
 
     algorithm.train()
 
 
-def launch_experiments(variant_generator):
+def launch_experiments(variant_generator,task_rew_wt=0.0,div_rew_wt=0.0):
     variants = variant_generator.variants()
 
     for i, variant in enumerate(variants):
@@ -269,5 +276,11 @@ def launch_experiments(variant_generator):
 
 if __name__ == '__main__':
     args = parse_args()
+    global task_rew_wt
+    global div_rew_wt
+    global temp
+    task_rew_wt = args.task_rew_wt
+    div_rew_wt = args.div_rew_wt
+    temp = args.temp
     variant_generator = get_variants(args)
     launch_experiments(variant_generator)

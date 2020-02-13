@@ -1,0 +1,3 @@
+#!/home/abhijeet/Desktop/abcd/sac/scripts/sac_env/bin/python3.5
+from numba.pycc import main
+main()

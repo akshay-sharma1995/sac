@@ -1,0 +1,2 @@
+qf, vf --> Q-value, state value functions
+mujoco_all_diayan --> sac.misc.instrument.run_sac_experiment --> rllab.misc.instrument.run_experiment_lite

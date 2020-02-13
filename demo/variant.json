@@ -1,0 +1,22 @@
+{
+  "K": 4,
+  "_hidden_keys": [],
+  "batch_size": 128,
+  "discount": 0.99,
+  "env_name": "swimmer-rllab",
+  "epoch_length": 1000,
+  "exp_name": "swimmer-second_one-00",
+  "layer_size": 128,
+  "lr": 0.0003,
+  "max_path_length": 1000,
+  "max_pool_size": 1000000.0,
+  "n_epochs": 2000,
+  "n_train_repeat": 1,
+  "prefix": "swimmer",
+  "scale_reward": 100,
+  "seed": 1,
+  "snapshot_gap": 100,
+  "snapshot_mode": "gap",
+  "sync_pkl": true,
+  "tau": 0.01
+}

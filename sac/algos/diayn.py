@@ -16,7 +16,7 @@ import numpy as np
 import os
 import scipy.stats
 import tensorflow as tf
-
+import math
 
 EPS = 1E-6
 
@@ -41,7 +41,10 @@ class DIAYN(SAC):
                  best_skill_n_rollouts=10,
                  learn_p_z=False,
                  include_actions=False,
-                 add_p_z=True):
+                 add_p_z=True,
+                 task_rew_wt=0.0,
+                 div_rew_wt=0.0,
+                 temp=1.0):
         """
         Args:
             base_kwargs (dict): dictionary of base arguments that are directly
@@ -96,6 +99,11 @@ class DIAYN(SAC):
         self._save_full_state = save_full_state
         self._include_actions = include_actions
         self._add_p_z = add_p_z
+        self.task_rew_wt = task_rew_wt
+        self.div_rew_wt = div_rew_wt
+        self.temp = temp
+        
+        self.epoch = 0
 
         self._Da = self._env.action_space.flat_dim
         self._Do = self._env.observation_space.flat_dim
@@ -120,6 +128,7 @@ class DIAYN(SAC):
             - action
             - terminals
             - zs
+            - task reward
         """
 
         self._obs_pl = tf.placeholder(
@@ -151,6 +160,12 @@ class DIAYN(SAC):
             name='p_z',
         )
 
+        self._reward_task = tf.placeholder(
+                tf.float32,
+                shape=[None],
+                name='reward_task',
+        )
+
     def _sample_z(self):
         """Samples z from p(z), using probabilities in self._p_z."""
         return np.random.choice(self._num_skills, p=self._p_z)
@@ -168,7 +183,6 @@ class DIAYN(SAC):
         See Equation (10) in [1], for further information of the
         Q-function update rule.
         """
-
         self._qf_t = self._qf.get_output_for(
             self._obs_pl, self._action_pl, reuse=True)  # N
 
@@ -178,12 +192,15 @@ class DIAYN(SAC):
                                                         reuse=True)
         else:
             logits = self._discriminator.get_output_for(obs, reuse=True)
+
+        # log prob of the discriminator as the reward
         reward_pl = -1 * tf.nn.softmax_cross_entropy_with_logits(labels=z_one_hot,
                                                                  logits=logits)
         reward_pl = tf.check_numerics(reward_pl, 'Check numerics (1): reward_pl')
         p_z = tf.reduce_sum(self._p_z_pl * z_one_hot, axis=1)
         log_p_z = tf.log(p_z + EPS)
         self._log_p_z = log_p_z
+        
         if self._add_p_z:
             reward_pl -= log_p_z
             reward_pl = tf.check_numerics(reward_pl, 'Check numerics: reward_pl')
@@ -192,9 +209,9 @@ class DIAYN(SAC):
         with tf.variable_scope('target'):
             vf_next_target_t = self._vf.get_output_for(self._obs_next_pl)  # N
             self._vf_target_params = self._vf.get_params_internal()
-
         ys = tf.stop_gradient(
-            reward_pl + (1 - self._terminal_pl) * self._discount * vf_next_target_t
+           self.task_rew_wt * (1-math.exp(-self.temp*self.epoch)) * self._reward_task + 
+            self.div_rew_wt * math.exp(-self.temp*self.epoch) * reward_pl + (1 - self._terminal_pl) * self._discount * vf_next_target_t
         )  # N
 
         self._td_loss_t = 0.5 * tf.reduce_mean((ys - self._qf_t)**2)
@@ -286,6 +303,7 @@ class DIAYN(SAC):
             self._action_pl: batch['actions'],
             self._obs_next_pl: batch['next_observations'],
             self._terminal_pl: batch['terminals'],
+            self._reward_task: batch['rewards'],
             self._p_z_pl: self._p_z,
         }
 
@@ -389,10 +407,11 @@ class DIAYN(SAC):
                                       save_itrs=True):
                 logger.push_prefix('Epoch #%d | ' % epoch)
 
-
+                self.epoch = epoch
                 path_length_list = []
                 z = self._sample_z()
                 aug_obs = utils.concat_obs_z(observation, z, self._num_skills)
+                
 
                 for t in range(self._epoch_length):
                     iteration = t + epoch * self._epoch_length
